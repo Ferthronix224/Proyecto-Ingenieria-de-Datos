@@ -98,3 +98,22 @@ class Application_Layer():
 
         prediccion = regr.predict([[24]])
         print(prediccion)
+
+def main():
+    # Instancias
+    adapter = Adapter_Layer()
+    application = Application_Layer()
+    # Adapter Layer
+    bucket, arg_date_dt, s3 = adapter.access()
+    objects = adapter.objects(bucket, arg_date_dt)
+    df = adapter.first_df(bucket, objects, 10)
+    # Application Layer
+    df_all = application.extract(df, objects, bucket)
+    transform = application.transform_report(df_all)
+    load = application.load(transform, s3)
+    etl_report = application.etl_report(s3)
+
+    print(etl_report)
+    application.linear_regression(transform)
+
+main()
