@@ -5,6 +5,10 @@ from datetime import datetime, timedelta
 import numpy as np
 from sklearn import linear_model
 from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+from tensorflow import keras
+import time
+
 
 class Adapter_Layer:
     def access(self):
@@ -23,6 +27,7 @@ class Adapter_Layer:
         data = StringIO(csv_obj_init)
         df_init = pd.read_csv(data, delimiter=",")
         return df_init
+
 
 class Application_Layer():
 
@@ -99,6 +104,31 @@ class Application_Layer():
         prediccion = regr.predict([[24]])
         print(prediccion)
 
+def neural_network(df_all):
+    X = df_all.drop(['Date', 'ISIN', 'StartPrice', 'Time'], axis=1)  # características
+    y = df_all['EndPrice']  # objetivo
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+
+    mean = X_train.mean(axis=0)
+    std = X_train.std(axis=0)
+
+    X_train = (X_train - mean) / std
+    X_test = (X_test - mean) / std
+
+    model = keras.Sequential([
+        keras.layers.Dense(64, activation='relu', input_shape=(X_train.shape[1],)),
+        keras.layers.Dense(1)
+    ])
+
+    model.compile(optimizer='adam', loss='mean_squared_error')
+
+    model.fit(X_train, y_train, epochs=50, batch_size=32, validation_data=(X_test, y_test))
+
+    predictions = model.predict(X_test)
+
+    return predictions
+
 def main():
     # Instancias
     adapter = Adapter_Layer()
@@ -114,6 +144,9 @@ def main():
     etl_report = application.etl_report(s3)
 
     print(etl_report)
-    application.linear_regression(transform)
+    print(neural_network(transform))
 
+inicio = time.time()
 main()
+fin = time.time()
+print(int(fin - inicio))
