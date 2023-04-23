@@ -1,13 +1,18 @@
-import boto3
-import pandas as pd
-from io import StringIO, BytesIO
-from datetime import datetime, timedelta
-import numpy as np
-from sklearn import linear_model
-from sklearn.metrics import mean_squared_error, r2_score
-from sklearn.model_selection import train_test_split
-from tensorflow import keras
-import time
+import boto3  # Crear, configurar, y administrar servicios de AWS
+import pandas as pd  # Manipulación y el análisis de datos
+from io import StringIO, BytesIO  # StringIO - Este objeto se puede usar como entrada o salida para la mayoría de las
+# funciones que esperarían un objeto de archivo estándar
+# BytesIO - los datos se pueden guardar como bytes en un búfer en memoria cuando usamos las operaciones Byte IO del
+# módulo io
+from datetime import datetime, timedelta  # datetime - proporciona clases para manipular fechas y horas
+# timedelta - representa una duración, la diferencia entre dos fechas u horas
+import numpy as np  # crear vectores y matrices grandes multidimensionales, junto con una gran colección de funciones
+# matemáticas de alto nivel para operar con ellas
+from sklearn import linear_model  # Regresion lineal
+from sklearn.model_selection import train_test_split  # Dividir arreglos o matrices en subconjuntos aleatorios de tren
+# y prueba.
+from tensorflow import keras  # Redes neuronales
+import time  # proporciona varias funciones relacionadas con el tiempo
 
 
 class Adapter_Layer:
@@ -96,10 +101,6 @@ class Application_Layer():
         print('Coefficients: \n', regr.coef_)
         # Este es el valor donde corta el eje Y (en X=0)
         print('Independent term: \n', regr.intercept_)
-        # Error Cuadrado Medio
-        print("Mean squared error: %.2f" % mean_squared_error(y_train, y_pred))
-        # Puntaje de Varianza. El mejor puntaje es un 1.0
-        print('Variance score: %.2f' % r2_score(y_train, y_pred))
 
         prediccion = regr.predict([[24]])
         print(prediccion)
