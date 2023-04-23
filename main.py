@@ -16,21 +16,23 @@ import time  # proporciona varias funciones relacionadas con el tiempo
 
 
 class Adapter_Layer:
-    def access(self):
-        s3 = boto3.resource('s3')
-        bucket = s3.Bucket('xetra-1234')
-        arg_date = '2022-12-25'
-        arg_date_dt = datetime.strptime(arg_date, '%Y-%m-%d').date() - timedelta(days=1)
+    def access(self, s3, bucket, date):  # Método para acceder al servicio y al bucket
+        s3 = boto3.resource(s3)  # Variable que inicializa el servicio de AWS
+        bucket = s3.Bucket(bucket)  # Variable que inicializa el bucket del servicio
+        arg_date_dt = datetime.strptime(date, '%Y-%m-%d').date() - timedelta(days=1)  # Variable que establece un
+        # formato de fecha y se le recorre un dia
         return bucket, arg_date_dt, s3
 
-    def objects(self, bucket, arg_date_dt):
-        return [obj for obj in bucket.objects.all() if
-                datetime.strptime(obj.key.split('/')[0], '%Y-%m-%d').date() >= arg_date_dt]
+    def objects(self, bucket, arg_date_dt):  # Método que devuelve los objetos de un bucket dentro de una fecha en
+        # adelante
+        return [obj for obj in bucket.objects.all() if datetime.strptime(obj.key.split('/')[0], '%Y-%m-%d').date() >=
+                arg_date_dt]
 
-    def first_df(self, bucket, objects, i):
-        csv_obj_init = bucket.Object(key=objects[i].key).get().get('Body').read().decode('utf-8')
-        data = StringIO(csv_obj_init)
-        df_init = pd.read_csv(data, delimiter=",")
+    def first_df(self, bucket, objects):  # Método para sacar el primer dataframe de un objeto
+        csv_obj_init = bucket.Object(key=objects[0].key).get().get('Body').read().decode('utf-8')  # Variable que
+        # muestra la información del bucket
+        data = StringIO(csv_obj_init)  # Variable que convierte la información del bucket a formato string
+        df_init = pd.read_csv(data, delimiter=",")  # Creación del dataframe
         return df_init
 
 
@@ -134,10 +136,14 @@ def main():
     # Instancias
     adapter = Adapter_Layer()
     application = Application_Layer()
+    # Parametros
+    s3 = 's3'
+    bucket = 'xetra-1234'
+    date = '2022-12-25'
     # Adapter Layer
-    bucket, arg_date_dt, s3 = adapter.access()
+    bucket, arg_date_dt, s3 = adapter.access(s3, bucket, date)
     objects = adapter.objects(bucket, arg_date_dt)
-    df = adapter.first_df(bucket, objects, 10)
+    df = adapter.first_df(bucket, objects)
     # Application Layer
     df_all = application.extract(df, objects, bucket)
     transform = application.transform_report(df_all)
