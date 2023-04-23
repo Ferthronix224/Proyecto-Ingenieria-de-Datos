@@ -38,46 +38,53 @@ class Adapter_Layer:
 
 class Application_Layer():
 
-    def extract(self, df_init, objects, bucket):
-        df_all = pd.DataFrame(columns=df_init.columns)
-        for obj in objects:
-            csv_obj = bucket.Object(key=obj.key).get().get('Body').read().decode('utf-8')
-            data = StringIO(csv_obj)
-            df = pd.read_csv(data, delimiter=',')
-            df_all = pd.concat([df, df_all], ignore_index=True)
+    def extract(self, df_init, objects, bucket):  # Método para hacer un dataframe de todos los buckets correspondientes
+        df_all = pd.DataFrame(columns=df_init.columns)  # Variable que inicializa un dataframe con sus columnas
+        for obj in objects:  # Ciclo que itera todos los objetos
+            csv_obj = bucket.Object(key=obj.key).get().get('Body').read().decode('utf-8')  # Variable que muestra la
+            # información del objeto
+            data = StringIO(csv_obj)  # La información del objeto en formato string
+            df = pd.read_csv(data, delimiter=',')  # Creación de dataframe del objeto iterado
+            df_all = pd.concat([df, df_all], ignore_index=True)  # Concatenación del dataframe iterado en la variable
+            # inicializada
         columns = ['ISIN', 'Mnemonic', 'Date', 'Time', 'StartPrice', 'EndPrice', 'MinPrice', 'MaxPrice', 'TradedVolume']
-        df_all = df_all.loc[:, columns]
+        # Nombres de las columnas que se quiere filtrar
+        df_all = df_all.loc[:, columns]  # Filtración de las columnas
 
         return df_all
 
     def transform_report(self, df_all):
-        df_all = df_all.loc[
-            (df_all["Time"] >= '08:00') & (df_all["Time"] <= '12:00'), ["ISIN", "Date", "Time", "StartPrice",
-                                                                        "EndPrice"]]
-        std = []
-        List = [[df_all["StartPrice"]], [df_all["EndPrice"]]]
-        for i in range(len(List[0][0])):
-            Std = [List[0][0].iloc[i], List[1][0].iloc[i]]
-            std.append(np.std(Std))
-        df_all['std'] = std
-        df_all["EndPrice_MXN"] = df_all["EndPrice"] * 19.09
-        df_all = df_all.sort_values(by=['Time'])
-        df_all.round(decimals=4)
+        df_all = df_all.loc[(df_all["Time"] >= '08:00') & (df_all["Time"] <= '12:00'), ["ISIN", "Date", "Time",
+                                                                                        "StartPrice", "EndPrice"]]
+        # Se filtran los registros entre las 8 y las 12 y se muestran las columnas establecidas
+        std = []  # Variable para almacenar la desviación estandar
+        List = [[df_all["StartPrice"]], [df_all["EndPrice"]]]  # Lista con las columnas necesarias para la desviación
+        # estandar
+        for i in range(len(List[0][0])):  # Ciclo for que itera el número de objetos
+            Std = [List[0][0].iloc[i], List[1][0].iloc[i]]  # Iteración de las filas
+            std.append(np.std(Std))  # agregar la desviación estandar con la variable creada anteriormente
+        df_all['std'] = std  # Agregación de la desviación estándar
+        df_all["EndPrice_MXN"] = df_all["EndPrice"] * 19.09  # EndPrice en pesos mexicanos
+        df_all = df_all.sort_values(by=['Time'])  # Ordenar las filas en base a la hora
+        df_all.round(decimals=4)  # Reducir los valores numericos a 4 decimales
         return df_all
 
-    def load(self, df_all, s3):
-        key = 'xetra_daily_report_' + datetime.today().strftime("%Y%m%d_%H%M%S") + '.parquet'
-        out_buffer = BytesIO()
-        df_all.to_parquet(out_buffer, index=False)
-        bucket_target = s3.Bucket('ferthronix-xetra')
-        bucket_target.put_object(Body=out_buffer.getvalue(), Key=key)
+    def load(self, df_all, s3):  # Método para subir a la nube el dataframe
+        key = 'xetra_daily_report_' + datetime.today().strftime("%Y%m%d_%H%M%S") + '.parquet'  # Se establece el nombre
+        # del archivo que se subirá a la nube
+        out_buffer = BytesIO()  # Se inicializa variable para guardar información en el buffer
+        df_all.to_parquet(out_buffer, index=False)  # Se convierte el dataframe a formato parquet
+        bucket_target = s3.Bucket('ferthronix-xetra')  # Se inicializa el bucket a donde será almacenado el parquet
+        bucket_target.put_object(Body=out_buffer.getvalue(), Key=key)  # Se sube el archivo a la nube
 
     def etl_report(self, s3):
-        bucket_target = s3.Bucket('ferthronix-xetra')
-        parq = [obj.key for obj in bucket_target.objects.all()]
-        prq_obj = bucket_target.Object(key=parq[-1]).get().get('Body').read()
-        data = BytesIO(prq_obj)
-        df_report = pd.read_parquet(data)
+        bucket_target = s3.Bucket('ferthronix-xetra')  # Se inicializa el bucket donde está almacenado el parquet
+        parq = [obj.key for obj in bucket_target.objects.all()]  # Variable con los nombres de todos archivos parquet
+        # en el bucket
+        prq_obj = bucket_target.Object(key=parq[-1]).get().get('Body').read()  # Mostrar la información del último
+        # parquet subido
+        data = BytesIO(prq_obj)  # Variable con la información del parquet en el buffer
+        df_report = pd.read_parquet(data)  # Variable que lee el archivo parquet
         return df_report
 
     def linear_regression(df_all):
