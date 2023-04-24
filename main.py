@@ -11,7 +11,11 @@ import numpy as np  # crear vectores y matrices grandes multidimensionales, junt
 from sklearn import linear_model  # Regresion lineal
 from sklearn.model_selection import train_test_split  # Dividir arreglos o matrices en subconjuntos aleatorios de tren
 # y prueba.
+from sklearn.preprocessing import StandardScaler
 from tensorflow import keras  # Redes neuronales
+from keras.models import Sequential
+from keras.layers import Dense
+from sklearn.metrics import mean_squared_error, r2_score
 import time  # proporciona varias funciones relacionadas con el tiempo
 
 
@@ -115,29 +119,37 @@ class Application_Layer():
         print(prediccion)
 
 def neural_network(df_all):
-    X = df_all.drop(['Date', 'ISIN', 'StartPrice', 'Time'], axis=1)  # características
-    y = df_all['EndPrice']  # objetivo
+    # codificar la columna de fechas
+    df_all['Date'] = pd.to_datetime(df_all['Date'])
+    df_all.sort_values('Date', inplace=True)
+    df_all['Objetive'] = df_all['Date'].shift(-7)
+
+    # dividir los datos en conjuntos de entrenamiento y prueba
+    XX = np.array(df_all["EndPrice"])
+    X = []
+    for i in XX:
+        i = [i]
+        X.append(i)
+    y = df_all['Objetive']  # objetivo
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
-    mean = X_train.mean(axis=0)
-    std = X_train.std(axis=0)
+    sc = StandardScaler()
+    X_train = sc.fit_transform(X_train)
+    X_test = sc.transform(X_test)
 
-    X_train = (X_train - mean) / std
-    X_test = (X_test - mean) / std
-
-    model = keras.Sequential([
-        keras.layers.Dense(64, activation='relu', input_shape=(X_train.shape[1],)),
-        keras.layers.Dense(1)
-    ])
-
+    model = Sequential()
+    model.add(Dense(64, activation='relu', input_dim=X_train.shape[1]))
+    model.add(Dense(1))
     model.compile(optimizer='adam', loss='mean_squared_error')
 
-    model.fit(X_train, y_train, epochs=50, batch_size=32, validation_data=(X_test, y_test))
+    model.fit(X_train, y_train, epochs=3, batch_size=32, validation_data=(X_test, y_test))
 
     predictions = model.predict(X_test)
+    mse = mean_squared_error(y_test, predictions)
+    r2 = r2_score(y_test, predictions)
 
-    return predictions
+    return predictions, mse, r2
 
 def main():
     # Instancias
@@ -158,7 +170,10 @@ def main():
     etl_report = application.etl_report(s3)
 
     print(etl_report)
-    print(neural_network(transform))
+    neural = neural_network(transform)
+    print(neural[0])
+    print(neural[1])
+    print(neural[2])
 
 inicio = time.time()
 main()
