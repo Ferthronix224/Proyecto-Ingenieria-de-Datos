@@ -12,7 +12,6 @@ from sklearn import linear_model  # Regresion lineal
 from sklearn.model_selection import train_test_split  # Dividir arreglos o matrices en subconjuntos aleatorios de tren
 # y prueba.
 from sklearn.preprocessing import StandardScaler
-from tensorflow import keras  # Redes neuronales
 from keras.models import Sequential
 from keras.layers import Dense
 from sklearn.metrics import mean_squared_error, r2_score
@@ -40,7 +39,13 @@ class Adapter_Layer:
         return df_init
 
 
-class Application_Layer():
+class Application_Layer(Adapter_Layer):
+
+    def first_df(self, bucket, objects):
+        csv_obj_init = bucket.Object(key=objects[1].key).get().get('Body').read().decode('utf-8')
+        data = StringIO(csv_obj_init)
+        df_init = pd.read_csv(data, delimiter=",")
+        return df_init
 
     def extract(self, df_init, objects, bucket):  # Método para hacer un dataframe de todos los buckets correspondientes
         df_all = pd.DataFrame(columns=df_init.columns)  # Variable que inicializa un dataframe con sus columnas
@@ -91,39 +96,11 @@ class Application_Layer():
         df_report = pd.read_parquet(data)  # Variable que lee el archivo parquet
         return df_report
 
-    def linear_regression(df_all):
-        # Se asigna variable de entrada X para entrenamiento y las etiquetas Y.
-        dataX = df_all['Time'].replace({':': '.'}, regex=True).astype(float)
-        XX = np.array(dataX)
-        X_train = []
-        for i in XX:
-            i = [i]
-            X_train.append(i)
-        y_train = df_all['EndPrice'].values
-
-        # Creamos el objeto de Regresión Linear
-        regr = linear_model.LinearRegression()
-
-        # Entrenamos nuestro modelo
-        regr.fit(X_train, y_train)
-
-        # Hacemos las predicciones que en definitiva una línea (en este caso, al ser 2D)
-        y_pred = regr.predict(X_train)
-
-        # Veamos los coeficienetes obtenidos, En nuestro caso, serán la Tangente
-        print('Coefficients: \n', regr.coef_)
-        # Este es el valor donde corta el eje Y (en X=0)
-        print('Independent term: \n', regr.intercept_)
-
-        prediccion = regr.predict([[24]])
-        print(prediccion)
-
 def neural_network(df_all):
     # codificar la columna de fechas
     df_all['Date'] = pd.to_datetime(df_all['Date'])
     df_all.sort_values('Date', inplace=True)
     df_all['Objetive'] = df_all['Date'].shift(-7)
-    print(df_all['Objetive'])
 
     # dividir los datos en conjuntos de entrenamiento y prueba
     XX = np.array(df_all["Objetive"])
@@ -135,6 +112,7 @@ def neural_network(df_all):
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
+# Escalar las características utilizando un objeto de escalado de scikit-learn
     sc = StandardScaler()
     X_train = sc.fit_transform(X_train)
     X_test = sc.transform(X_test)
@@ -142,13 +120,15 @@ def neural_network(df_all):
     model = Sequential()
     model.add(Dense(64, activation='relu', input_dim=X_train.shape[1]))
     model.add(Dense(1))
+    # se crea una red neuronal secuencial con dos capas densas
     model.compile(optimizer='adam', loss='mean_squared_error')
+    # Se utiliza la función de pérdida de error cuadrático medio (MSE) y el optimizador Adam.
 
-    model.fit(X_train, y_train, epochs=3, batch_size=32, validation_data=(X_test, y_test))
+    model.fit(X_train, y_train, epochs=10, batch_size=32, validation_data=(X_test, y_test)) # Entrenamiento
 
-    predictions = model.predict(X_test)
-    mse = mean_squared_error(y_test, predictions)
-    r2 = r2_score(y_test, predictions)
+    predictions = model.predict(X_test) # Predicciones
+    mse = mean_squared_error(y_test, predictions)  # Error cuadratico medio
+    r2 = r2_score(y_test, predictions)  # Coeficiente de determinacion
 
     return predictions, mse, r2
 
