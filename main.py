@@ -123,14 +123,15 @@ def neural_network(df_all):
     df_all['Date'] = pd.to_datetime(df_all['Date'])
     df_all.sort_values('Date', inplace=True)
     df_all['Objetive'] = df_all['Date'].shift(-7)
+    print(df_all['Objetive'])
 
     # dividir los datos en conjuntos de entrenamiento y prueba
-    XX = np.array(df_all["EndPrice"])
+    XX = np.array(df_all["Objetive"])
     X = []
     for i in XX:
         i = [i]
         X.append(i)
-    y = df_all['Objetive']  # objetivo
+    y = df_all['EndPrice']  # objetivo
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
